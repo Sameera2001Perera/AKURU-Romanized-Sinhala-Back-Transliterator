@@ -1,0 +1,5 @@
+torch
+transformers
+jiwer
+nltk
+flask

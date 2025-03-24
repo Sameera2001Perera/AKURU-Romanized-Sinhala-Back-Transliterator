@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AKURU</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Sinhala&display=swap');
+
+        h1 {
+            font-family: 'Noto Sans Sinhala', sans-serif; /* Ensure Sinhala support */
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background-image: url('/static/iii.jpg');
+            background-size: cover;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            width: 80%;
+            max-width: 500px;
+        }
+
+        textarea, button {
+            width: 90%;
+            padding: 10px;
+            font-size: 16px;
+        }
+
+        .output {
+            border: 1px solid #ccc;
+            padding: 10px;
+            background: white;
+            margin-top: 10px;
+            font-size: 16px;
+            min-height: 30px; /* Ensures the box doesn’t disappear when empty */
+        }
+
+        .loading {
+            font-style: italic;
+            color: gray;
+        }
+
+
+        .sinhala-char {
+            font-size: 1.5em; /* Makes the Sinhala letter larger */
+            font-weight: bold; /* Makes it slightly bolder */
+        }
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1><span class="sinhala-char">&#3461;</span>KURU</h1>
+        <h2>Romanized Sinhala to Native Sinhala</h2>
+        
+        <!-- Input Textarea -->
+        <textarea id="singlishInput" placeholder="Enter Romanized Sinhala text here..." rows="5"></textarea>
+        <br><br>
+
+        <!-- Transliterate Button -->
+        <button onclick="transliterate()">Transliterate</button>
+
+        <!-- Output Section -->
+        <h3>Output:</h3>
+        <div id="output" class="output"></div>
+    </div>
+
+    <script>
+        async function transliterate() {
+            const inputText = document.getElementById("singlishInput").value.trim();
+            const outputDiv = document.getElementById("output");
+
+            if (!inputText) {
+                outputDiv.innerHTML = "<span style='color:red;'>Please enter text</span>";
+                return;
+            }
+
+            // Show loading message while waiting for response
+            outputDiv.innerHTML = "<span class='loading'>Generating output...</span>";
+
+            try {
+                const response = await fetch("/transliterate", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ text: inputText })
+                });
+
+                const data = await response.json();
+                if (data.error) {
+                    outputDiv.innerHTML = `<span style='color:red;'>${data.error}</span>`;
+                } else {
+                    outputDiv.innerText = data.output;  // Display final transliteration output
+                }
+            } catch (error) {
+                outputDiv.innerHTML = "<span style='color:red;'>Error communicating with server</span>";
+            }
+        }
+    </script>
+</body>
+</html>
