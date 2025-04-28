@@ -8,7 +8,7 @@
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Sinhala&display=swap');
 
         h1 {
-            font-family: 'Noto Sans Sinhala', sans-serif; /* Ensure Sinhala support */
+            font-family: 'Noto Sans Sinhala', sans-serif; 
         }
 
         body {
@@ -18,7 +18,10 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
+            margin: 0;
+            padding: 0;
+            height: 100vh; 
+            overflow: hidden; 
         }
 
         .container {
@@ -36,13 +39,34 @@
             font-size: 16px;
         }
 
-        .output {
-            border: 1px solid #ccc;
-            padding: 10px;
-            background: white;
-            margin-top: 10px;
+        textarea {
+            resize: none;
+            margin-bottom: 16px; 
+        }
+
+        button {
+            background-color: #007BFF; 
+            color: white;
+            border: none;
+            padding: 12px 20px;
             font-size: 16px;
-            min-height: 30px; /* Ensures the box doesn’t disappear when empty */
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            width: auto; 
+            margin-top: 10px;
+            margin-top: 10px;
+            margin-bottom: 16px;
+        }
+
+        button:hover {
+            background-color: #007BFF;
+            transform: scale(1.05);
+        }
+
+        button:active {
+            transform: scale(0.98);
         }
 
         .loading {
@@ -52,9 +76,54 @@
 
 
         .sinhala-char {
-            font-size: 1.5em; /* Makes the Sinhala letter larger */
-            font-weight: bold; /* Makes it slightly bolder */
+            font-size: 1.5em;
+            font-weight: bold;
         }
+
+        .output-container {
+            position: relative;
+            display: inline-block;
+            width: 100%;
+        }
+
+        .output {
+            border: 1px solid #ccc;
+            padding: 12px;
+            background: white;
+            font-size: 16px;
+            min-height: 40px;
+            max-height: 150px; 
+            overflow-y: auto;  
+            border-radius: 6px;
+            word-wrap: break-word;
+            text-align: left;
+        }
+
+
+
+        .copy-container {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 10px; 
+            margin-bottom: 20px; 
+        }
+
+
+        #copyBtn {
+            background-color: #6f42c1;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            font-size: 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+        }
+
+        .stack > * {
+            margin-bottom: 16px;
+        }
+
 
     </style>
 </head>
@@ -62,20 +131,48 @@
     <div class="container">
         <h1><span class="sinhala-char">&#3461;</span>KURU</h1>
         <h2>Romanized Sinhala to Native Sinhala</h2>
-        
-        <!-- Input Textarea -->
-        <textarea id="singlishInput" placeholder="Enter Romanized Sinhala text here..." rows="5"></textarea>
-        <br><br>
-
-        <!-- Transliterate Button -->
-        <button onclick="transliterate()">Transliterate</button>
-
-        <!-- Output Section -->
-        <h3>Output:</h3>
-        <div id="output" class="output"></div>
+    
+        <div class="stack">
+            <textarea id="singlishInput" placeholder="Enter Romanized Sinhala text here..." rows="5" spellcheck="false"></textarea>
+    
+            <button onclick="transliterate()">Transliterate</button>
+    
+            <div id="output" class="output"></div>
+    
+            <div class="copy-container">
+                <button id="copyBtn" onclick="copyToClipboard()">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
+                        class="bi bi-clipboard" viewBox="0 0 16 16" style="margin-right: 6px;">
+                        <path d="M10 1.5v1a.5.5 0 0 0 .5.5h3v11h-11v-11h3a.5.5 0 0 0 .5-.5v-1h4z"/>
+                        <path d="M9.5 0a.5.5 0 0 1 .5.5V1h-4V.5a.5.5 0 0 1 .5-.5h3z"/>
+                    </svg>
+                    <span id="copyLabel">Copy</span>
+                </button>
+            </div>
+        </div>
     </div>
+    
 
     <script>
+        function copyToClipboard() {
+            const outputText = document.getElementById("output").innerText.trim();
+
+            if (!outputText) {
+                const outputDiv = document.getElementById("output");
+                outputDiv.innerHTML = "<span style='color:red;'>Nothing to copy. Please transliterate first.</span>";
+                return;
+            }
+
+            navigator.clipboard.writeText(outputText)
+                .then(() => {
+                    const label = document.getElementById("copyLabel");
+                    label.textContent = "Copied!";
+                    setTimeout(() => label.textContent = "Copy", 1500);
+                })
+                .catch(() => alert("Failed to copy text"));
+        }
+
+
         async function transliterate() {
             const inputText = document.getElementById("singlishInput").value.trim();
             const outputDiv = document.getElementById("output");
@@ -85,7 +182,6 @@
                 return;
             }
 
-            // Show loading message while waiting for response
             outputDiv.innerHTML = "<span class='loading'>Generating output...</span>";
 
             try {
@@ -101,7 +197,8 @@
                 if (data.error) {
                     outputDiv.innerHTML = `<span style='color:red;'>${data.error}</span>`;
                 } else {
-                    outputDiv.innerText = data.output;  // Display final transliteration output
+                    outputDiv.innerText = data.output;
+                    document.getElementById("copyBtn").style.display = "inline-block";
                 }
             } catch (error) {
                 outputDiv.innerHTML = "<span style='color:red;'>Error communicating with server</span>";

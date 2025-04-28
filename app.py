@@ -7,6 +7,7 @@ app = Flask(__name__)
 
 # Load transliteration model
 model_directory = "models"
+# model_directory = "Ransaka/sinhala-bert-medium-v2"
 dictionary_path = "data/dictionary.txt"
 tokenizer = AutoTokenizer.from_pretrained(model_directory)
 model = AutoModelForMaskedLM.from_pretrained(model_directory)
@@ -44,4 +45,4 @@ def transliterate_text():
 
 
 if __name__ == "__main__":
-    app.run(debug=False)
+    app.run(debug=False, port=5000)

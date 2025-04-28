@@ -3,25 +3,6 @@ from collections import defaultdict
 from functools import reduce
 import itertools
 
-
-# Remove words which are not in the BERT vocabulary
-def clean_words(sinhala_words, tokenizer):
-    new_sinhala_words = []
-    vocab = set(tokenizer.vocab)  # Convert vocab to a set for O(1) lookups
-
-    for words in sinhala_words:
-        if len(words) == 1:
-            new_sinhala_words.append(words)
-            continue
-        clean_words = [word for word in words if word in vocab]
-
-        if not clean_words:  # If no words are found in the vocab
-            clean_words = [words[0]]
-        new_sinhala_words.append(clean_words)
-
-    return new_sinhala_words
-
-
 # Get the candidate words and mask the sentence accordingly
 def process_sentence(new_sinhala_words):
     sinhala_words_processing = new_sinhala_words.copy()
@@ -231,59 +212,3 @@ def replace_masks_and_collect_candidates(sentence, mask_words):
             sentence = sentence.replace(f"[{mask[1:-1]}]", words[0])
 
     return sentence, candidates
-
-
-def chunk_sentence(mask_sentence, candidate_words):
-    mask_sentence = mask_sentence.split()
-    mask_indexes = [
-        index for index, word in enumerate(mask_sentence) if word == "[MASK]"
-    ]
-    # Map candidate_words indexes with mask_indexes
-    index_map = {}
-    for i in range(len(mask_indexes)):
-        index_map[i] = mask_indexes[i]
-
-    max_bert_call = 20
-    overlap = 2
-    mask_count = 0
-    sentences = []
-    candidates = []
-    sub_sentence = []
-    sub_candidates = []
-
-    for index, word in enumerate(mask_sentence):
-        if word != "[MASK]":
-            sub_sentence.append(word)
-            if index == len(mask_sentence) - 1:
-                sentences.append(" ".join(sub_sentence))
-                candidates.append(sub_candidates)
-        else:
-            sub_candidates.append(candidate_words[get_key_by_value(index_map, index)])
-            sub_sentence.append(word)
-            mask_count += 1
-            if len(sub_candidates) >= (overlap + 1):
-                if (calculate_number_of_bert_calls(sub_candidates)) > max_bert_call:
-                    try:
-                        sub_sentence = (
-                            sub_sentence
-                            + mask_sentence[
-                                mask_indexes[mask_count - 1]
-                                + 1 : mask_indexes[mask_count]
-                            ]
-                        )
-                    except:
-                        sub_sentence = (
-                            sub_sentence
-                            + mask_sentence[mask_indexes[mask_count - 1] + 1 :]
-                        )
-                    sentences.append(" ".join(sub_sentence))
-                    candidates.append(sub_candidates)
-
-                    sub_sentence = mask_sentence[
-                        (mask_indexes[(mask_count - overlap) - 1]) + 1 : index + 1
-                    ]
-                    sub_candidates = sub_candidates[-2:]
-                elif index == len(mask_sentence) - 1:
-                    sentences.append(" ".join(sub_sentence))
-                    candidates.append(sub_candidates)
-    return sentences, candidates

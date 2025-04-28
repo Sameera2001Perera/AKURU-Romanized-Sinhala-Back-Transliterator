@@ -13,7 +13,6 @@ from .utils import (
 from .dictionary import TransliterationDictionary
 import itertools
 from .chunker import Chunker
-import concurrent.futures
 
 
 class Transliterator:
@@ -34,9 +33,7 @@ class Transliterator:
     def get_sinhala_words(self, singlish_sentence):
         # Separate words by spaces and get corresponding Sinhala words
         singlish_words = singlish_sentence.split()
-        print(f"Singlish words: {singlish_words}")
         sinhala_words = [self.get_sinhala_word(word) for word in singlish_words]
-        print(f"Sinhala words: {sinhala_words}")
         return sinhala_words
 
     # Sinhala word suggesions for the given singlish word
@@ -66,108 +63,56 @@ class Transliterator:
             new_sinhala_words.append(clean_words)
         return new_sinhala_words
 
-    # Generate probability dictinary
+    # Update the calling function
     def generate_probability_dict(self, one_blank_sentences, tokenizer):
-        # one_blank_sentences = {"ඔබ [MASK] එනවද": ["අද"]}
-        word_probabilities = {}
-        # print(f"One blank sentences: {one_blank_sentences}/n")
-        for one_blank_sentence, candidate in one_blank_sentences.items():
-            probs = list(self.model.generate_probs(one_blank_sentence, candidate))
-            # print(f"Probs: {probs}/n")
+        sentences_with_blank = list(
+            one_blank_sentences.keys()
+        )  # Extract all masked sentences
 
-            for i in range(len(probs)):
-                word = probs[i][0]
-                # print(f"Word: {word}")
-                full_sentence = one_blank_sentence.replace("[MASK]", word)
-                # print(f"Full sentence: {full_sentence}")
-                sentence_key = one_blank_sentence + "--" + word + "--" + full_sentence
-                # print(f"Sentence key: {sentence_key}")
-                prob = probs[i][1]
-                # print(f"Prob: {prob}/n/n")
-                word_probabilities[sentence_key] = prob
-        # print(f"Word probabilities: {word_probabilities}")
-        return word_probabilities
+        # Get word probabilities in parallel
+        word_probabilities = self.model.generate_probs(
+            sentences_with_blank, one_blank_sentences
+        )
 
-    # # Update the calling function
-    # def generate_probability_dict(self, one_blank_sentences, tokenizer):
-
-    #     print(f"One blank sentences: {one_blank_sentences}")
-
-    #     # one_blank_sentences = {"ඔබ [MASK] එනවද": ["අද"]}
-    #     one_blank_sentences = {
-    #         # "[MASK] අද එනවද": ["ඔබ", "ඔබා"],
-    #         # "[MASK] ආදී එන   නවද": ["ඔබ", "ඔබා"],
-    #         # "[MASK] අඩ එනවද": ["ඔබ", "ඔබා"],
-    #         # "[MASK] ආදා එනවද": ["ඔබ", "ඔබා"],
-    #         # "[MASK] අදී එනවද": ["ඔබ", "ඔබා"],
-    #         # "[MASK] අඩෝ එනවද": ["ඔබ", "ඔබා"],
-    #         # "[MASK] අඩේ එනවද": ["ඔබ", "ඔබා"],
-    #         # "[MASK] ආද එනවද": ["ඔබ", "ඔබා"],
-    #         # "[MASK] ආඩ එනවද": ["ඔබ", "ඔබා"],
-    #         # "[MASK] අද් එනවද": ["ඔබ", "ඔබා"],
-    #         # "ඔබා [MASK] එනවද": [
-    #         #     "අද",
-    #         #     "ආදී",
-    #         #     "අඩ",
-    #         #     "ආදා",
-    #         #     "අදී",
-    #         #     "අඩෝ",
-    #         #     "අඩේ",
-    #         #     "ආද",
-    #         #     "ආඩ",
-    #         #     "අද්",
-    #         # ],
-    #         "ඔබ [MASK] එනවද": [
-    #             "අද",
-    #             "ආදී",
-    #             "අඩ",
-    #             "ආදා",
-    #             "අදී",
-    #             "අඩෝ",
-    #             "අඩේ",
-    #             "ආද",
-    #             "ආඩ",
-    #             "අද්",
-    #         ],
-    #     }
-
-    #     sentences_with_blank = list(
-    #         one_blank_sentences.keys()
-    #     )  # Extract all masked sentences
-
-    #     print(f"Sentences with blank: {sentences_with_blank}")
-
-    #     # Get word probabilities in parallel
-    #     word_probabilities = self.model.generate_probs(
-    #         sentences_with_blank, one_blank_sentences
-    #     )
-
-    #     # Convert output into final dictionary format
-    #     probability_dict = {}
-    #     for (masked_sentence, word), prob in word_probabilities.items():
-    #         full_sentence = masked_sentence.replace("[MASK]", word)
-    #         sentence_key = f"{masked_sentence}--{word}--{full_sentence}"
-    #         probability_dict[sentence_key] = prob
-    #     print(f"Word probabilities: {probability_dict}")
-    #     return probability_dict
+        # Convert output into final dictionary format
+        probability_dict = {}
+        for (masked_sentence, word), prob in word_probabilities.items():
+            full_sentence = masked_sentence.replace("[MASK]", word)
+            sentence_key = f"{masked_sentence}--{word}--{full_sentence}"
+            probability_dict[sentence_key] = prob
+        return probability_dict
 
     # transliterating process
     def transliterate(self, masked_sentence, candidates):
         word_combinations = list(itertools.product(*candidates))
+
+        print("\n\nMasked sentence: ", masked_sentence)
+        print("Candidates: ", candidates)
+
+        print("\n\nWord combinations: ", len(word_combinations))
+
         word_list = masked_sentence.split()
         mask_indexes = [
             index for index, word in enumerate(word_list) if word == "[MASK]"
         ]
-        # generate sentences with one blanks including possible candidae words for the blank
+        # generate sentences with one blanks including possible candidate words for the blank
         one_blank_sentences = generate_sentences_with_one_blank(
             word_combinations, mask_indexes, masked_sentence
         )
+
+        print("One blank sentences: ", len(one_blank_sentences))
+
         word_probabilities = self.generate_probability_dict(
             one_blank_sentences, self.tokenizer
         )
+        print("Word probabilities: ", len(word_probabilities))
+        # print("Word probabilities: ", word_probabilities)
         full_sentences = generate_sentences_with_all_combinations(
             masked_sentence, candidates
         )
+
+        print("Full sentences: ", len(full_sentences))
+        # print("Full sentences[0]: ", full_sentences[0])
         # Find the sentence with the highest product
         max_product = None
         max_sentence = None
@@ -177,7 +122,7 @@ class Transliterator:
             if product is not None and (max_product is None or product > max_product):
                 max_product = product
                 max_sentence = sentence
-        # print(f"Output: {max_sentence}")
+        print("Max sentence: ", max_sentence)
         return max_sentence
 
     def generate_sinhala(self, singlish_sentence):
@@ -190,71 +135,41 @@ class Transliterator:
 
         sinhala_words = self.get_sinhala_words(singlish_sentence)
         filtered_sinhala_words = self.clean_words(sinhala_words)
-        # print(f"Filtered words: {filtered_sinhala_words}\n")
         masked_sentence, candidates = process_sentence(filtered_sinhala_words)
 
         while True:
             if len(candidates) == 0:
-                # print(f"Output: {masked_sentence}")
                 return masked_sentence
-                # return masked_sentence, ["No candidates"]
-
             else:
-                # print(f"Masked sentence: {masked_sentence}")
-                # print(f"Candidate words: {candidates}\n")
-
                 if len(candidates) <= 3:
                     output = self.transliterate(masked_sentence, candidates)
-                    # print(f"Output: {output}")
                     return output
                 else:
+
+                    print("\n\nMasked sentence: ", masked_sentence)
+                    print("Candidates: ", candidates)
+
                     sentences, candidates = self.chunker.chunk_sentence(
                         masked_sentence, candidates
                     )
-                    # print(f"CHUNKED Sentences: {sentences}")
-                    # print(f"CHUNKED Candidates: {candidates}\n")
+
+                    print("\n\nChunked sentences: ", sentences)
+                    print("Chunked candidates: ", candidates)
+        
 
                     # Numbering masks
                     numbered_input_sentence = numbering_masks_sentence(masked_sentence)
-                    # print(f"Numbered input sentence: {numbered_input_sentence}")
                     numbered_sentences = numbering_masks_sentences(sentences)
-                    # print(f"Numbered sentences: {numbered_sentences}")
 
                     filled_sentences = [
                         self.transliterate(sentences[i], candidates[i])
                         for i in range(len(sentences))
                     ]
-                    # print(f"Filled sentences: {filled_sentences}")
 
                     # Find the words for each mask
                     mask_words = find_mask_words(numbered_sentences, filled_sentences)
-                    # print(f"Mask words: {mask_words}")
 
                     # Replace the MASKs and collect candidates
                     masked_sentence, candidates = replace_masks_and_collect_candidates(
                         numbered_input_sentence, mask_words
                     )
-                    # print(f"Updated sentence: {masked_sentence}")
-                    # print(f"Updated Candidates: {candidates}\n")
-
-                    # with concurrent.futures.ThreadPoolExecutor() as executor:
-                    #     filled_sentences = list(
-                    #         executor.map(
-                    #             lambda i: self.transliterate(
-                    #                 sentences[i], candidates[i]
-                    #             ),
-                    #             range(len(sentences)),
-                    #         )
-                    #     )
-                    # # print(f"Filled sentences: {filled_sentences}")
-
-                    # # Find the words for each mask
-                    # mask_words = find_mask_words(numbered_sentences, filled_sentences)
-                    # # print(f"Mask words: {mask_words}")
-
-                    # # Replace the MASKs and collect candidates
-                    # masked_sentence, candidates = replace_masks_and_collect_candidates(
-                    #     numbered_input_sentence, mask_words
-                    # )
-                    # # print(f"Updated sentence: {masked_sentence}")
-                    # print(f"Updated Candidates: {candidates}\n")

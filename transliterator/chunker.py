@@ -68,4 +68,5 @@ class Chunker:
                     elif index == len(mask_sentence) - 1:
                         sentences.append(" ".join(sub_sentence))
                         candidates.append(sub_candidates)
+
         return sentences, candidates
